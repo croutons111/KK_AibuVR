@@ -71,7 +71,7 @@ namespace KK_AibuVR
             NipStandScale = Config.Bind(
                 "Hand Caress",
                 "Nipple Protrusion (bone localPosition Z offset)",
-                3.0f,
+                1.0f,
                 new ConfigDescription(
                     "p_fingerL 胸カレス中に cf_j_bnip02 のローカル Z 位置を前方にずらして乳首を突出させる値。\n" +
                     "1.0=突起なし（0m）、3.0=推奨（約6mm）、8.0=最大（20mm）。\n" +

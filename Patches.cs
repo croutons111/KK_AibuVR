@@ -167,6 +167,8 @@ namespace KK_AibuVR
         [HarmonyPostfix]
         private static void Postfix(VRHScene __instance)
         {
+            TongueCaressController.UpdateHandMode();
+
             if (!Plugin.HandCaressEnabled.Value) return;
 
             var vrHands = (VRHandCtrl[])F_vrHands.GetValue(__instance);
@@ -309,7 +311,6 @@ namespace KK_AibuVR
     }
 
     // Re-apply touch pose after HAibu.LateProc in case HAibu overrode our CrossFade.
-    // Also manages hand-mode diagnostic logging and nipple state for p_fingerL breast caress.
     [HarmonyPatch(typeof(HAibu), "LateProc")]
     internal static class HAibu_LateProc_Patch
     {
@@ -317,7 +318,6 @@ namespace KK_AibuVR
         private static void Postfix()
         {
             TongueCaressController.Instance?.ApplyTouchPose();
-            TongueCaressController.UpdateHandMode();
         }
     }
 }

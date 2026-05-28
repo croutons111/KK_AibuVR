@@ -167,7 +167,7 @@ namespace KK_AibuVR
         {
             if (!Plugin.HandCaressEnabled.Value) return;
             if (TongueModeActive || Instance == null) return;
-            if (Instance._flags == null || Instance._flags.mode != HFlag.EMode.aibu) return;
+            if (Instance._flags == null) return;
             Instance.DoUpdateHandMode();
         }
 
@@ -262,13 +262,13 @@ namespace KK_AibuVR
         {
             if (_animBody == null) return;
 
-            // Periodic diagnostic
+            // Periodic diagnostic (nowAnim is logged for reference but not used for detection)
             _handDiagTimer -= Time.deltaTime;
-            string nowAnim = F_nowAnimStateName != null
-                ? ((string)F_nowAnimStateName.GetValue(_flags) ?? "") : "";
             if (_handDiagTimer <= 0f)
             {
                 _handDiagTimer = 3f;
+                string nowAnim = F_nowAnimStateName != null
+                    ? ((string)F_nowAnimStateName.GetValue(_flags) ?? "") : "";
                 int bHash = _animBody.GetCurrentAnimatorStateInfo(0).shortNameHash;
                 foreach (var h in _vrHands)
                 {
@@ -277,58 +277,40 @@ namespace KK_AibuVR
                     var zone = VRHandCtrlPatches.F_selectKindTouch.GetValue(h);
                     var lr   = VRHandCtrlPatches.F_handLR.GetValue(h);
                     Plugin.Logger.LogInfo(
-                        $"[KK_AibuVR] HandDiag ({lr}): nowAnim={nowAnim} baseHash={bHash} zone={zone} useItem={ui?.obj?.name ?? "null"}");
+                        $"[KK_AibuVR] HandDiag ({lr}): mode={_flags.mode} nowAnim={nowAnim} baseHash={bHash} zone={zone} useItem={ui?.obj?.name ?? "null"}");
                 }
             }
 
-            // Detect p_fingerL breast caress.
-            // M_Touch = drag motion, M_Idle = static pinch (sustained nipple caress).
-            // Both are breast-zone states set by DragAction.
-            // Detect p_fingerL breast caress and which side(s) are being touched.
-            bool inBreastAnim    = nowAnim == "M_Touch" || nowAnim == "M_Idle";
+            // Detect finger item in muneL/R zone.
+            // Both finger name and zone must match; works in aibu/sonyu/houshi modes.
+            bool detectedL = false;
+            bool detectedR = false;
             bool fingerBreastActive = false;
-            if (inBreastAnim)
+            foreach (var h in _vrHands)
             {
-                // Reset sticky flags each detection pass so a hand that left the breast clears its side.
-                bool detectedL = false;
-                bool detectedR = false;
-                foreach (var h in _vrHands)
-                {
-                    if (h == null) continue;
-                    var ui = (VRHandCtrl.AibuItem)VRHandCtrlPatches.F_useItem.GetValue(h);
-                    if (ui?.obj == null) continue;
-                    if (ui.obj.name.IndexOf("finger", StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        fingerBreastActive = true;
-                        // Sticky zone: update only when a confirmed mune zone is detected.
-                        // zone="none" keeps the previous value so protrusion doesn't drop mid-caress.
-                        string zoneStr = VRHandCtrlPatches.F_selectKindTouch.GetValue(h)?.ToString() ?? "";
-                        if (zoneStr.IndexOf("mune", StringComparison.OrdinalIgnoreCase) >= 0)
-                        {
-                            if      (zoneStr.IndexOf("R", StringComparison.OrdinalIgnoreCase) >= 0) detectedR = true;
-                            else if (zoneStr.IndexOf("L", StringComparison.OrdinalIgnoreCase) >= 0) detectedL = true;
-                        }
-                    }
-                }
-                // Sticky: once a side is set, keep it until NipState goes OFF.
-                if (detectedL) _caressedL = true;
-                if (detectedR) _caressedR = true;
+                if (h == null) continue;
+                var ui = (VRHandCtrl.AibuItem)VRHandCtrlPatches.F_useItem.GetValue(h);
+                if (ui?.obj == null) continue;
+                if (ui.obj.name.IndexOf("finger", StringComparison.OrdinalIgnoreCase) < 0) continue;
+
+                string zoneStr = VRHandCtrlPatches.F_selectKindTouch.GetValue(h)?.ToString() ?? "";
+                if (zoneStr.IndexOf("mune", StringComparison.OrdinalIgnoreCase) < 0) continue;
+
+                fingerBreastActive = true;
+                if      (zoneStr.IndexOf("R", StringComparison.OrdinalIgnoreCase) >= 0) detectedR = true;
+                else if (zoneStr.IndexOf("L", StringComparison.OrdinalIgnoreCase) >= 0) detectedL = true;
             }
+            // Sticky: once a side is set, keep it until NipState goes OFF.
+            if (detectedL) _caressedL = true;
+            if (detectedR) _caressedR = true;
 
             if (fingerBreastActive)
             {
                 _nipOffDebounce = 0f;
                 if (!_nipStateActive) SetNipState(true);
             }
-            else if (!inBreastAnim)
-            {
-                // Animation left M_Touch/M_Idle: intentional release — stop immediately, no debounce.
-                _nipOffDebounce = 0f;
-                if (_nipStateActive) SetNipState(false);
-            }
             else
             {
-                // Still in M_Touch/M_Idle but finger item momentarily lost: brief glitch → debounce.
                 _nipOffDebounce += Time.deltaTime;
                 if (_nipOffDebounce >= NipOffDelay) SetNipState(false);
             }
