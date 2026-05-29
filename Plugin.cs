@@ -20,6 +20,8 @@ namespace KK_AibuVR
         public static ConfigEntry<ViveButton>       CycleButtonVR_L = null!;  // 左コントローラー
         public static ConfigEntry<ViveButton>       CycleButtonVR_R = null!;  // 右コントローラー
 
+        public static ConfigEntry<float> NipStandScale = null!;
+
         // EViveButtonKind の値に一致させる（VRViveController+EViveButtonKind）
         public enum ViveButton
         {
@@ -65,6 +67,15 @@ namespace KK_AibuVR
                 "右コントローラーのアイテム切り替えボタン（右手のみ切り替え）\n" +
                 "None=無効 / Grip=グリップ / Menu=メニュー / Touchpad=タッチパッド押し込み\n" +
                 "Touchpad_Up/Down/Left/Right=タッチパッド方向押し");
+
+            NipStandScale = Config.Bind(
+                "Hand Caress",
+                "Nipple Protrusion (bone localPosition Z offset)",
+                1.0f,
+                new ConfigDescription(
+                    "胸カレス中に cf_j_bnip02 のローカル Z 位置を前方にずらして乳首を突出させる値。\n" +
+                    "1.0=補正なし（0m）、3.0=推奨（約6mm）、8.0=最大（20mm）。",
+                    new AcceptableValueRange<float>(1.0f, 8.0f)));
 
             Harmony.CreateAndPatchAll(typeof(Plugin).Assembly, PluginGuid);
             Logger.LogInfo($"{PluginName} v{PluginVersion} loaded.");

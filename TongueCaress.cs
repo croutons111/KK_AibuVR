@@ -226,7 +226,9 @@ namespace KK_AibuVR
                 if (fs == null) return;
                 var mask = (bool[,])_piDisableBustShapeMask.GetValue(fs, null);
                 if (mask == null || mask.GetLength(1) <= 8) return;
-                mask[0, 8] = false;
+                mask[0, 7] = false;  // 乳首太さ
+                mask[1, 7] = false;
+                mask[0, 8] = false;  // 乳首立ち
                 mask[1, 8] = false;
             }
             catch { }
@@ -249,6 +251,8 @@ namespace KK_AibuVR
             }
             else
             {
+                if (_bnip02R != null) _bnip02R.localPosition = Vector3.zero;
+                if (_bnip02L != null) _bnip02L.localPosition = Vector3.zero;
                 _caressedL = false;
                 _caressedR = false;
                 Plugin.Logger.LogInfo($"[KK_AibuVR] NipState OFF");
@@ -278,10 +282,12 @@ namespace KK_AibuVR
                 }
             }
 
-            // Detect finger item in muneL/R zone.
-            // Both finger name and zone must match; works in aibu/sonyu/houshi modes.
-            bool detectedL = false;
-            bool detectedR = false;
+            // Detect finger item regardless of zone.
+            // Zone check removed: selectKindTouch transiently returns none during physics/animation,
+            // which caused NipStateActive to drop and ClearNipStandMask to stop running.
+            // Finger-only detection keeps NipStateActive stable while finger is held.
+            // EnableShape only calls DisableShapeNip for muneL/R zones, so no flattening
+            // occurs when finger is on non-breast zones.
             bool fingerBreastActive = false;
             foreach (var h in _vrHands)
             {
@@ -289,17 +295,9 @@ namespace KK_AibuVR
                 var ui = (VRHandCtrl.AibuItem)VRHandCtrlPatches.F_useItem.GetValue(h);
                 if (ui?.obj == null) continue;
                 if (ui.obj.name.IndexOf("finger", StringComparison.OrdinalIgnoreCase) < 0) continue;
-
-                string zoneStr = VRHandCtrlPatches.F_selectKindTouch.GetValue(h)?.ToString() ?? "";
-                if (zoneStr.IndexOf("mune", StringComparison.OrdinalIgnoreCase) < 0) continue;
-
                 fingerBreastActive = true;
-                if      (zoneStr.IndexOf("R", StringComparison.OrdinalIgnoreCase) >= 0) detectedR = true;
-                else if (zoneStr.IndexOf("L", StringComparison.OrdinalIgnoreCase) >= 0) detectedL = true;
+                break;
             }
-            // Sticky: once a side is set, keep it until NipState goes OFF.
-            if (detectedL) _caressedL = true;
-            if (detectedR) _caressedR = true;
 
             if (fingerBreastActive)
             {
@@ -1233,20 +1231,20 @@ namespace KK_AibuVR
 
         private void LateUpdate()
         {
-            // Restore areola shape masks each frame during breast caress.
-            // DisableShapeNip(lr, true) sets masks 6/7 (areola). Our DisableShapeNip_Patch blocks
-            // new calls, but calling disable=false here also clears any mask that slipped through
-            // on the first contact frame (before NipStateActive was set).
-            // Note: NipStand mask (index 8) is handled in UpdateShapeBody_Patch.Prefix (ClearNipStandMask)
-            // which clears it without triggering the reSetupDynamicBoneBust side effect.
-            if (_nipStateActive && (_caressedL || _caressedR) && _femaleCha != null)
+            // Restore areola/nipple shape masks and push nipple forward via bone Z offset.
+            if (_nipStateActive && _femaleCha != null)
             {
                 try
                 {
-                    if (_caressedL) MI_DisableShapeNip?.Invoke(_femaleCha, new object[] { 0, false });
-                    if (_caressedR) MI_DisableShapeNip?.Invoke(_femaleCha, new object[] { 1, false });
+                    MI_DisableShapeNip?.Invoke(_femaleCha, new object[] { 0, false });
+                    MI_DisableShapeNip?.Invoke(_femaleCha, new object[] { 1, false });
                 }
                 catch { }
+
+                float protrusion = (Plugin.NipStandScale.Value - 1f) / 7f * 0.02f;
+                var pos = new Vector3(0f, 0f, protrusion);
+                if (_bnip02R != null) _bnip02R.localPosition = pos;
+                if (_bnip02L != null) _bnip02L.localPosition = pos;
             }
 
             if (_activeZone == "") return;
@@ -1412,15 +1410,8 @@ namespace KK_AibuVR
         }
     }
 
-    // VRHandCtrl.EnableShape calls DisableShapeNip(lr, true) and DisableShapeBodyID(lr, 8, true)
-    // when a hand item contacts the breast (via OnCollision→EnableShapeCoroutine or SetAnimation).
-    // Both calls flatten the nipple/areola:
-    //   DisableShapeNip         → disables blend shape masks 6/7 (nipple+areola mesh shape)
-    //   DisableShapeBodyID(,8,) → forces NipStand value to 0.5f (flat) in UpdateShapeBody
-    // Block disable=true during p_fingerL breast caress to preserve the neutral raised state.
-    // Allow disable=false so the game can restore shapes normally after caress ends.
-    // NotifyItemSwitch() resets NipStateActive before item cycling so SetItem's own
-    // EnableShape calls are not blocked (prevents mode-switch breakage).
+    // DisableShapeNip(lr, true) flattens areola (index 6) and nipple shape (index 7).
+    // Block disable=true during finger caress to preserve the neutral raised state.
     [HarmonyPatch(typeof(ChaControl), "DisableShapeNip")]
     internal static class ChaControl_DisableShapeNip_Patch
     {
