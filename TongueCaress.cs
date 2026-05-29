@@ -249,9 +249,6 @@ namespace KK_AibuVR
             }
             else
             {
-                // Reset nipple bone positions when caress ends so they don't stay at protrusion offset.
-                if (_bnip02R != null) _bnip02R.localPosition = Vector3.zero;
-                if (_bnip02L != null) _bnip02L.localPosition = Vector3.zero;
                 _caressedL = false;
                 _caressedR = false;
                 Plugin.Logger.LogInfo($"[KK_AibuVR] NipState OFF");
@@ -1250,20 +1247,6 @@ namespace KK_AibuVR
                     if (_caressedR) MI_DisableShapeNip?.Invoke(_femaleCha, new object[] { 1, false });
                 }
                 catch { }
-            }
-
-            // Push caressed nipple forward via cf_j_bnip02 localPosition Z offset.
-            // DragAction (via DynamicBone forces) drives the parent bone (cf_d_bnip01) inward,
-            // causing the nipple tip to sink into the breast. Setting a positive local Z on bnip02
-            // counteracts this regardless of the mask/sibBody state.
-            // At NipStandScale=1.0: protrusion=0 → resets any stale offset, no visual change.
-            // At NipStandScale=3.0: ~6mm forward → nipple visually natural.
-            if (_nipStateActive && (_caressedL || _caressedR))
-            {
-                float protrusion = (Plugin.NipStandScale.Value - 1f) / 7f * 0.02f;
-                var pos = new Vector3(0f, 0f, protrusion);
-                if (_caressedR && _bnip02R != null) _bnip02R.localPosition = pos;
-                if (_caressedL && _bnip02L != null) _bnip02L.localPosition = pos;
             }
 
             if (_activeZone == "") return;
