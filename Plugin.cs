@@ -11,7 +11,7 @@ namespace KK_AibuVR
     {
         public const string PluginGuid    = "com.koikatu.aibu_vr";
         public const string PluginName    = "KK_AibuVR";
-        public const string PluginVersion = "1.0.0";
+        public const string PluginVersion = "1.0.1";
 
         internal static new ManualLogSource Logger = null!;
 
