@@ -4,7 +4,7 @@
     <AssemblyName>KK_AibuVR</AssemblyName>
     <RootNamespace>KK_AibuVR</RootNamespace>
     <Description>Expands VR hand caress types to match non-VR gameplay</Description>
-    <Version>1.0.0</Version>
+    <Version>1.0.2</Version>
 
     <TargetFramework>net35</TargetFramework>
     <LangVersion>latest</LangVersion>

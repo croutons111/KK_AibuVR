@@ -9,9 +9,9 @@ namespace KK_AibuVR
     [BepInProcess("KoikatuVR")]
     public class Plugin : BaseUnityPlugin
     {
-        public const string PluginGuid    = "com.koikatu.aibu_vr";
+        public const string PluginGuid    = "KK_AibuVR";
         public const string PluginName    = "KK_AibuVR";
-        public const string PluginVersion = "1.0.1";
+        public const string PluginVersion = "1.0.2";
 
         internal static new ManualLogSource Logger = null!;
 
